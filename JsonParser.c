@@ -574,3 +574,52 @@ void jStringAddTabs(FILE * f){
 		fprintf(f, "\t");
 	}
 }
+char jHasProperty(Object * obj, char * prop){
+	Pair * p = obj->pair;
+	while(p){
+		if(!strcmp(p->key, prop))
+			return TRUE;
+	}
+	return FALSE;
+}
+int jGetAsLong(Element * element, long  * l){
+	if(element->type != TYPE_Long)
+		return -1;
+
+	*l = *(long *)element->value;
+	return 0;
+}
+int jGetAsDouble(Element * element, double  * d){
+	if(element->type != TYPE_Double)
+		return -1;
+
+	*d = *(double *)element->value;
+	return 0;
+}
+int jGetAsString(Element * element, char ** s){
+	if(element->type != TYPE_String)
+		return -1;
+
+	*s = (char *)element->value;
+	return 0;
+}
+int jGetAsBool(Element * element, char * s){
+	switch(element->type){
+		case TYPE_False:
+			*s = 0;
+			break;
+		case TYPE_True:
+			*s = 1;
+			break;
+		default:
+			return -1;
+	}
+	return 0;
+}
+int jGetAsObject(Element * element, Object ** obj){
+	if(element->type != TYPE_Object)
+		return -1;
+
+	*obj = (Object *)element->value;
+	return 0;
+}
