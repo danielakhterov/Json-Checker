@@ -17,11 +17,6 @@
 #define TYPE_Object 64
 #define TYPE_Array 128
 
-int error;
-char * str;
-char quotes;
-int num_tabs;
-
 typedef struct Element {
 	int type;
 	void * value;
@@ -38,6 +33,11 @@ typedef struct Object {
 	Pair * pair;
 	struct Object * next;
 } Object;
+
+int error;
+char * str;
+char quotes;
+int num_tabs;
 
 Object * jInit();
 
@@ -58,12 +58,34 @@ int array(Element *);
 int elements(Element *);
 
 void jDestroy(Object *);
+void jDestroyAllObjects(Object *);
 void jDestroyObject(Object *);
+void jDestroyAllPairs(Pair *);
 void jDestroyPair(Pair *);
+void jDestroyAllElements(Element *);
 void jDestroyElement(Element *);
 
-void jString(FILE *, Object *);
-void jStringObject(FILE *, Object *);
-void jStringPair(FILE *, Pair *);
-void jStringElement(FILE *, Element *);
-void jStringAddTabs(FILE *);
+void jString(Object *, char **);
+void jStringObject(Object *, char **);
+void jStringPair(Pair *, char **);
+void jStringElement(Element *, char **);
+void jStringAddTabs(char **);
+
+char jHasProperty(Object *, char *);
+int jGetValue(Pair *, char *, Element **);
+int jGetAsLong(Element *, long *);
+int jGetAsDouble(Element *, double *);
+int jGetAsString(Element *, char **);
+int jGetAsBool(Element *, char *);
+int jGetAsObject(Element *, Object **);
+int jGetElementFromArray(Element *, Element **, int);
+
+int jAddPair(Pair **, char *, Element *);
+int jAddElement(Element **, Element * ne, int n);
+int jRemovePair(Pair **, char *);
+int jRemoveElement(Element **, int n);
+
+int jLongArrayToList(Element **, long *, size_t);
+int jDoubleArrayToList(Element **, double *, size_t);
+
+int strcat_realloc(char **, char *);

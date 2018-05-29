@@ -103,6 +103,7 @@ int members(Pair * p){
 int pair(Pair * p){
 	printf("pair()\n");
 	char * temp = str;
+	char * holder;
 
 	if(string() <= 0)
 		return -1;
@@ -110,7 +111,7 @@ int pair(Pair * p){
 	p->key = malloc(str - temp);
 	memset(p->key, 0, str - temp);
 	memcpy(p->key, temp + 1, str - temp - 1);
-	
+
 	advanceptr();
 
 	if(*str != ':'){
@@ -145,7 +146,6 @@ int string(){
 	advanceptr();
 
 	while(*str){
-		// printf("%c ", *str);
 		if(*str != '"' && *str != '\\'){
 			advanceptr();
 			n++;
@@ -439,139 +439,163 @@ int value_null(Element * element){
 
 	return 0;
 }
-Element * jGetValue(Object * obj, char * k){
-	Pair * p = obj->pair;
-	while(p){
-		if(!strcmp(p->key, k))
-			return p->element;
-		p = p->next;
-	}
-	return NULL;
-}
 void jDestroy(Object * obj){
+	jDestroyAllObjects(obj);
+}
+void jDestroyAllObjects(Object * obj){
 	if(!obj)
 		return;
-	jDestroy(obj->next);
-	jDestroyPair(obj->pair);
-	free(obj);
+
+	jDestroyAllObjects(obj->next);
+	jDestroyObject(obj);
 }
 void jDestroyObject(Object * obj){
-	jDestroyPair(obj->pair);
+	if(!obj)
+		return;
+
+	jDestroyAllPairs(obj->pair);
 	free(obj);
 }
-void jDestroyPair(Pair * p){
-	if(!p){
+void jDestroyAllPairs(Pair * p){
+	if(!p)
 		return;
-	}
-	jDestroyPair(p->next);
-	jDestroyElement(p->element);
+
+	jDestroyAllPairs(p->next);
+	jDestroyPair(p);
+}
+void jDestroyPair(Pair * p){
+	if(!p)
+		return;
+
+	jDestroyAllElements(p->element);
 	free(p->key);
 	free(p);
 }
-void jDestroyElement(Element * element){
-	if(!element){
+void jDestroyAllElements(Element * element){
+	if(!element)
 		return;
-	}
-	jDestroyElement(element->next);
+
+	jDestroyAllElements(element->next);
+	jDestroyElement(element);
+}
+void jDestroyElement(Element * element){
+	if(!element)
+		return;
+
+	if(element->type == TYPE_Array)
+		jDestroyAllElements((Element *)element->value);
+	else
+		free(element->value);
 	free(element);
 }
-void jString(FILE * f, Object * obj){
+void jString(Object * obj, char ** string){
+	printf("jString()\n");
+
 	if(obj->next){
 		num_tabs = 1;
-		fprintf(f, "[\n");
+		strcat_realloc(string, "[\n");
 
 		while(obj->next){
-			jStringObject(f, obj);
+			jStringObject(obj, string);
 			obj = obj->next;
-			fprintf(f, ",\n");
+			strcat_realloc(string, ",\n");
 		}
 
-		jStringObject(f, obj);
-		fprintf(f, "\n]");
+		jStringObject(obj, string);
+		strcat_realloc(string, "\n]");
 	}else{
 		num_tabs = 0;
-		jStringObject(f, obj);
+		jStringObject(obj, string);
 	}
 }
-void jStringObject(FILE * f, Object * obj){
-	jStringAddTabs(f);
-	fprintf(f, "{\n");
+void jStringObject(Object * obj, char ** string){
+	printf("jStringObject()\n");
+	jStringAddTabs(string);
+	strcat_realloc(string, "{\n");
 
 	num_tabs++;
-	jStringPair(f, obj->pair);
+	jStringPair(obj->pair, string);
 
 	num_tabs--;
-	jStringAddTabs(f);
-	fprintf(f, "}\n");
+	jStringAddTabs(string);
+	strcat_realloc(string, "}");
 }
-void jStringPair(FILE * f, Pair * p){
+void jStringPair(Pair * p, char ** string){
+	printf("jStringPair()\n");
 	while(p->next){
-		jStringAddTabs(f);
-		fprintf(f, "\"%s\": ", p->key);
-		jStringElement(f, p->element);
+		jStringAddTabs(string);
+		strcat_realloc(string, "\"");
+		strcat_realloc(string, p->key);
+		strcat_realloc(string, "\": ");
+		jStringElement(p->element, string);
 		p = p->next;
-		fprintf(f, ",\n");
+		strcat_realloc(string,  ",\n");
 	}
 
-	jStringAddTabs(f);
-	fprintf(f, "\"%s\": ", p->key);
-	jStringElement(f, p->element);
-	fprintf(f, "\n");
+	jStringAddTabs(string);
+	strcat_realloc(string, "\"");
+	strcat_realloc(string, p->key);
+	strcat_realloc(string, "\": ");
+	jStringElement(p->element, string);
+	strcat_realloc(string,  "\n");
 }
-void jStringElement(FILE * f, Element * element){
+void jStringElement(Element * element, char ** string){
+	printf("jStringElement\n");
 	char temp[32] = {0};
 	switch(element->type){
 		case TYPE_Null:
-			fprintf(f, "null");
+			strcat_realloc(string, "null");
 			break;
 		case TYPE_True:
-			fprintf(f, "true");
+			strcat_realloc(string, "true");
 			break;
 		case TYPE_False:
-			fprintf(f, "false");
+			strcat_realloc(string, "false");
 			break;
 		case TYPE_Long:
 			snprintf(temp, 31, "%ld", *(long *)element->value);
-			fprintf(f, "%s", temp);
+			strcat_realloc(string, temp);
 			break;
 		case TYPE_Double:
 			snprintf(temp, 31, "%f", *(double *)element->value);
-			fprintf(f, "%s", temp);
+			strcat_realloc(string, temp);
 			break;
 		case TYPE_String:
-			fprintf(f, "\"%s\"", (char *)element->value);
+			strcat_realloc(string, "\"");
+			strcat_realloc(string, (char *)element->value);
+			strcat_realloc(string, "\"");
 			break;
 		case TYPE_Element:
 			break;
 		case TYPE_Object:
 			num_tabs++;
-			jStringObject(f, (Object *)element->value);
+			jStringObject((Object *)element->value, string);
 			num_tabs--;
 			break;
 		case TYPE_Array:
 			num_tabs++;
-			fprintf(f, "[\n");
+			strcat_realloc(string, "[\n");
 
 			element = (Element *)element->value;
 			while(element->next){
-				jStringAddTabs(f);
-				jStringElement(f, element);
+				jStringAddTabs(string);
+				jStringElement(element, string);
 				element = element->next;
-				fprintf(f, ",\n");
+				strcat_realloc(string, ",\n");
 			}
-			jStringAddTabs(f);
-			jStringElement(f, element);
-			fprintf(f, "\n");
+			jStringAddTabs(string);
+			jStringElement(element, string);
+			strcat_realloc(string, "\n");
 
 			num_tabs--;
-			jStringAddTabs(f);
-			fprintf(f, "]");
+			jStringAddTabs(string);
+			strcat_realloc(string, "]");
 			break;
 	}
 }
-void jStringAddTabs(FILE * f){
+void jStringAddTabs(char ** string){
 	for(int i = 0; i < num_tabs; i++){
-		fprintf(f, "\t");
+		strcat_realloc(string, "\t");
 	}
 }
 char jHasProperty(Object * obj, char * prop){
@@ -581,6 +605,16 @@ char jHasProperty(Object * obj, char * prop){
 			return TRUE;
 	}
 	return FALSE;
+}
+int jGetValue(Pair * p, char * k, Element ** ret){
+	while(p){
+		if(!strcmp(p->key, k)){
+			*ret = p->element;
+			return 0;
+		}
+		p = p->next;
+	}
+	return -1;
 }
 int jGetAsLong(Element * element, long  * l){
 	if(element->type != TYPE_Long)
@@ -597,6 +631,9 @@ int jGetAsDouble(Element * element, double  * d){
 	return 0;
 }
 int jGetAsString(Element * element, char ** s){
+	if(!element)
+		return -1;
+
 	if(element->type != TYPE_String)
 		return -1;
 
@@ -621,5 +658,154 @@ int jGetAsObject(Element * element, Object ** obj){
 		return -1;
 
 	*obj = (Object *)element->value;
+	return 0;
+}
+int jGetElementFromArray(Element * element, Element ** result, int n){
+	if(!element)
+		return -1;
+
+	if(element->type != TYPE_Array)
+		return -1;
+
+	element = (Element *)element->value;
+	int i = 0;
+
+	while(element){
+		if(i++ == n){
+			*result = element;
+			return 0;
+		}
+		element = element->next;
+	}
+	return -1;
+}
+int jAddPair(Pair ** p, char * key, Element * element){
+	while(!p || !key || !element)
+		return -1;
+
+	Pair ** curr = p;
+	while(curr){
+		if(!strcmp((*curr)->key, key)){
+			jDestroyAllElements((*curr)->element);
+			(*curr)->element = element;
+			return 0;
+		}
+		curr = &(*curr)->next;
+	}
+	*curr = malloc(sizeof(Pair));
+	memset(*curr, 0, sizeof(Pair));
+	(*curr)->key = key;
+	(*curr)->element = element;
+	return 0;
+}
+int jAddElement(Element ** element, Element * ne, int n){
+	if(!(*element) || !ne)
+		return -1;
+
+	if((*element)->type != TYPE_Array)
+		return -1;
+
+	Element ** curr = (Element **)&(*element)->value;
+	int i = 0;
+
+	while(curr){
+		if(i++ == n){
+			Element * temp = *curr;
+			*curr = ne;
+			(*curr)->next = temp;
+		}
+		curr = &(*curr)->next;
+	}
+	*curr = ne;
+	return 0;
+}
+int jRemovePair(Pair ** p, char * k){
+	if(!*p)
+		return -1;
+
+	Pair ** curr = p;
+	while(curr){
+		if(!strcmp((*curr)->key, k)){
+			Pair * temp = *curr;
+			*curr = temp->next;
+			jDestroyPair(temp);
+			return 0;
+		}
+		curr = &(*curr)->next;
+	}
+	return -1;
+}
+int jRemoveElement(Element ** element, int n){
+	if(!element)
+		return -1;
+
+	Element ** curr = element;
+	int i = 0;
+
+	while(curr){
+		if(i++ == n){
+			Element * temp = *curr;
+			*curr = (*curr)->next;
+			jDestroyElement(temp);
+			return 0;
+		}
+		curr = &(*curr)->next;
+	}
+	return -1;
+}
+int jLongArrayToList(Element ** element, long * arr, size_t n){
+	*element = malloc(sizeof(Element));
+	memset(*element, 0, sizeof(Element));
+	(*element)->type = TYPE_Array;
+	
+	Element ** curr = (*element)->value;
+	for(int i = 0; i < n; i++){
+		*curr = malloc(sizeof(Element));
+		memset(*curr, 0, sizeof(Element));
+		(*curr)->type = TYPE_Long;
+		(*curr)->value = malloc(sizeof(long));
+		*(long *)(*curr)->value = arr[i];
+		curr = &(*curr)->next;
+	}
+}
+int jDoubleArrayToList(Element ** element, double * arr, size_t n){
+	*element = malloc(sizeof(Element));
+	memset(*element, 0, sizeof(Element));
+	(*element)->type = TYPE_Array;
+	
+	Element ** curr = (*element)->value;
+
+	for(int i = 0; i < n; i++){
+		*curr = malloc(sizeof(Element));
+		memset(*curr, 0, sizeof(Element));
+		(*curr)->type = TYPE_Double;
+		(*curr)->value = malloc(sizeof(double));
+		*(double *)(*curr)->value = arr[i];
+		curr = &(*curr)->next;
+	}
+}
+int strcat_realloc(char ** left, char * right){
+	int lenl;
+	int lenr;
+	int newlen;
+
+	if(!right)
+		return 0;
+
+	if(*left)
+		lenl = strlen(*left);
+	else 
+		lenl = 0;
+
+	lenr = strlen(right);
+	newlen = lenl + lenr + 1;
+	
+	*left = realloc(*left, newlen);
+	if(!*left)
+		return -1;
+
+	if(memcpy(*left + lenl, right, lenr + 1) < 0)
+		return -1;
+
 	return 0;
 }
